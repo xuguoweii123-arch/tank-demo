@@ -1,0 +1,1170 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tank TPS Duel Demo</title>
+  <style>
+    :root {
+      --panel: rgba(0, 0, 0, 0.42);
+      --text: #f3f6ff;
+      --accent: #57d2ff;
+      --danger: #ff6b6b;
+      --ok: #59f2a1;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 20% 10%, #1b2435 0%, #0f1115 55%);
+      color: var(--text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    #hud {
+      position: fixed;
+      left: 14px;
+      top: 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: var(--panel);
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      user-select: none;
+      z-index: 4;
+    }
+    #crosshair {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 26px;
+      height: 26px;
+      display: none;
+      pointer-events: none;
+      z-index: 3;
+    }
+    #scope {
+      position: fixed;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+      z-index: 2;
+      background:
+        radial-gradient(circle at center, transparent 0 42%, rgba(0, 0, 0, 0.68) 43%),
+        linear-gradient(to right, transparent 49.6%, rgba(255, 255, 255, 0.12) 49.8%, rgba(255, 255, 255, 0.12) 50.2%, transparent 50.4%),
+        linear-gradient(to bottom, transparent 49.6%, rgba(255, 255, 255, 0.12) 49.8%, rgba(255, 255, 255, 0.12) 50.2%, transparent 50.4%);
+    }
+    #crosshair::before,
+    #crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--accent);
+      box-shadow: 0 0 7px rgba(87, 210, 255, 0.8);
+    }
+    #crosshair::before {
+      left: 12px;
+      top: 2px;
+      width: 2px;
+      height: 22px;
+    }
+    #crosshair::after {
+      left: 2px;
+      top: 12px;
+      width: 22px;
+      height: 2px;
+    }
+    #board {
+      position: fixed;
+      right: 14px;
+      top: 14px;
+      width: 300px;
+      padding: 10px 10px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: var(--panel);
+      border-radius: 8px;
+      z-index: 4;
+      font-size: 13px;
+      user-select: none;
+    }
+    #board h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    #zone-info {
+      margin: 0 0 8px;
+      font-size: 12px;
+      opacity: 0.92;
+    }
+    #level-info {
+      margin: 0 0 6px;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    #board table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .camp-title {
+      margin: 8px 0 4px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .camp-title.friendly { color: #6ef29a; }
+    .camp-title.enemy { color: #ff7f7f; }
+    .camp-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      padding: 4px;
+      background: rgba(0,0,0,0.16);
+    }
+    #board th, #board td {
+      text-align: left;
+      padding: 3px 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+    }
+    #board th:nth-child(2), #board td:nth-child(2),
+    #board th:nth-child(3), #board td:nth-child(3),
+    #board th:nth-child(4), #board td:nth-child(4),
+    #board th:nth-child(5), #board td:nth-child(5) {
+      text-align: center;
+      width: 48px;
+    }
+    .friendly-row { color: #6ef29a; }
+    .enemy-row { color: #ff8080; }
+    .dead-row { color: #8b95a4; }
+    #result {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 5;
+      text-align: center;
+      user-select: none;
+    }
+    #result.show {
+      display: flex;
+    }
+    #result-card {
+      min-width: 280px;
+      padding: 24px 22px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      background: rgba(10, 12, 18, 0.88);
+      box-shadow: 0 20px 55px rgba(0, 0, 0, 0.42);
+    }
+    #result-title {
+      margin: 0 0 12px;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+    #result-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    #result-actions button {
+      border: 1px solid rgba(255,255,255,0.26);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #result-actions button:hover {
+      background: rgba(255,255,255,0.14);
+    }
+    .win { color: var(--ok); }
+    .lose { color: var(--danger); }
+    #result-sub { opacity: 0.9; font-size: 15px; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div><strong>坦克 TPS 混战 Demo</strong></div>
+    <div>移动: WASD（按坦克朝向）</div>
+    <div>视角: 鼠标仅水平转动</div>
+    <div>开火: 左键 / 空格，右键按住开镜</div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="scope"></div>
+  <div id="board">
+    <h4>战场排行</h4>
+    <div id="level-info">关卡: 1 | 友军: 5 | 敌军: 8</div>
+    <div id="zone-info">毒圈缩圈: 60s</div>
+    <div class="camp-title friendly">己方阵营</div>
+    <div class="camp-list">
+      <table>
+        <thead><tr><th>昵称</th><th>K</th><th>HP</th><th>状态</th></tr></thead>
+        <tbody id="friendly-body"></tbody>
+      </table>
+    </div>
+    <div class="camp-title enemy">敌方阵营</div>
+    <div class="camp-list">
+      <table>
+        <thead><tr><th>昵称</th><th>K</th><th>HP</th><th>状态</th></tr></thead>
+        <tbody id="enemy-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="result">
+    <div id="result-card">
+      <h2 id="result-title"></h2>
+      <p id="result-sub">按 R 重新开局</p>
+      <div id="result-actions">
+        <button id="btn-retry">再来一次</button>
+        <button id="btn-next">挑战下一关</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x516176);
+    scene.fog = new THREE.Fog(0x445264, 80, 260);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 550);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xbdd4ff, 0x3d3429, 1.05));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.65);
+    sun.position.set(36, 56, 24);
+    sun.castShadow = true;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 260;
+    sun.shadow.mapSize.set(1024, 1024);
+    scene.add(sun);
+
+    const mapScale = 0.7;
+    const mapHalfSize = Math.round(140 * mapScale);
+    const groundSize = mapHalfSize * 2 + 30;
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(groundSize, groundSize),
+      new THREE.MeshStandardMaterial({ color: 0x535a65, roughness: 0.93, metalness: 0.04 })
+    );
+    ground.rotation.x = -Math.PI * 0.5;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const grid = new THREE.GridHelper(groundSize, 36, 0x7e8fa8, 0x5c6878);
+    grid.position.y = 0.02;
+    scene.add(grid);
+
+    const boundaryPoints = [
+      new THREE.Vector3(-mapHalfSize, 0.08, -mapHalfSize),
+      new THREE.Vector3(mapHalfSize, 0.08, -mapHalfSize),
+      new THREE.Vector3(mapHalfSize, 0.08, mapHalfSize),
+      new THREE.Vector3(-mapHalfSize, 0.08, mapHalfSize),
+      new THREE.Vector3(-mapHalfSize, 0.08, -mapHalfSize)
+    ];
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(boundaryPoints),
+      new THREE.LineBasicMaterial({ color: 0x7fa5e9, transparent: true, opacity: 0.95 })
+    ));
+    function createUnitCircleLine(segments = 96, color = 0x90ff68) {
+      const points = [];
+      for (let i = 0; i < segments; i++) {
+        const t = (i / segments) * Math.PI * 2;
+        points.push(new THREE.Vector3(Math.cos(t), 0.1, Math.sin(t)));
+      }
+      return new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 })
+      );
+    }
+    const zoneLine = createUnitCircleLine();
+    scene.add(zoneLine);
+
+    function createTank(bodyColor, turretColor) {
+      const tank = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8, 1.0, 4.3),
+        new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.58, metalness: 0.3 })
+      );
+      body.position.y = 0.62;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      tank.add(body);
+
+      const leftTrack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.45, 0.42, 4.4),
+        new THREE.MeshStandardMaterial({ color: 0x2f3238, roughness: 0.9 })
+      );
+      leftTrack.position.set(-1.45, 0.28, 0);
+      const rightTrack = leftTrack.clone();
+      rightTrack.position.x = 1.45;
+      leftTrack.castShadow = rightTrack.castShadow = true;
+      tank.add(leftTrack, rightTrack);
+
+      const turretYaw = new THREE.Group();
+      turretYaw.position.y = 1.22;
+      tank.add(turretYaw);
+      const turretMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(1.75, 0.66, 2.2),
+        new THREE.MeshStandardMaterial({ color: turretColor, roughness: 0.5, metalness: 0.38 })
+      );
+      turretMesh.castShadow = true;
+      turretYaw.add(turretMesh);
+
+      const barrelPitch = new THREE.Group();
+      barrelPitch.position.set(0, 0.02, 0.65);
+      turretYaw.add(barrelPitch);
+      const barrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 3.3, 16),
+        new THREE.MeshStandardMaterial({ color: 0xbec7d8, metalness: 0.86, roughness: 0.2 })
+      );
+      barrel.rotation.x = Math.PI * 0.5;
+      barrel.position.z = 1.65;
+      barrel.castShadow = true;
+      barrelPitch.add(barrel);
+      const muzzle = new THREE.Object3D();
+      muzzle.position.z = 3.3;
+      barrelPitch.add(muzzle);
+
+      tank.userData = { body, leftTrack, rightTrack, turretMesh, turretYaw, barrelPitch, barrel, muzzle, radius: 1.8 };
+      return tank;
+    }
+
+    const obstacleBoxes = [];
+    const fireEmitters = [];
+    function registerObstacle(mesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      obstacleBoxes.push(new THREE.Box3().setFromObject(mesh));
+    }
+    function createRuinFire(pos) {
+      const fire = new THREE.Mesh(
+        new THREE.SphereGeometry(0.9, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff7a1c, emissive: 0xff3a00, emissiveIntensity: 1.8, transparent: true, opacity: 0.82 })
+      );
+      fire.position.copy(pos);
+      scene.add(fire);
+      const smoke = [];
+      for (let i = 0; i < 6; i++) {
+        const puff = new THREE.Mesh(
+          new THREE.SphereGeometry(0.55 + Math.random() * 0.25, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x252830, transparent: true, opacity: 0.32, roughness: 1 })
+        );
+        puff.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.6 + i * 0.38, (Math.random() - 0.5) * 0.6));
+        scene.add(puff);
+        smoke.push({ mesh: puff, seed: Math.random() * Math.PI * 2, drift: 0.2 + Math.random() * 0.22 });
+      }
+      fireEmitters.push({ fire, smoke, origin: pos.clone(), t: Math.random() * Math.PI * 2 });
+    }
+    function createCityRuins() {
+      const span = mapHalfSize - 18;
+      const road = Math.round(20 * mapScale);
+      const step = Math.max(14, Math.round(22 * mapScale));
+      const spawnPad = Math.round(20 * mapScale);
+      const density = 0.7;
+      const spawnRingCount = 40;
+      const spawnSafe = Array.from({ length: spawnRingCount }, (_, i) => {
+        const r = mapHalfSize * 0.73;
+        const a = (i / spawnRingCount) * Math.PI * 2;
+        return new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r);
+      });
+      for (let x = -span; x <= span; x += step) {
+        for (let z = -span; z <= span; z += step) {
+          if (Math.abs(x) < road || Math.abs(z) < road) continue;
+          if (Math.random() > density) continue;
+          if (spawnSafe.some((p) => Math.abs(x - p.x) < spawnPad && Math.abs(z - p.y) < spawnPad)) continue;
+          const w = 4 + Math.random() * 10;
+          const d = 5 + Math.random() * 12;
+          const h = 7 + Math.random() * 34;
+          const ruined = Math.random() < 0.45;
+          const height = ruined ? h * (0.38 + Math.random() * 0.44) : h;
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(w, height, d),
+            new THREE.MeshStandardMaterial({ color: ruined ? 0x4b515b : 0x5b626f, roughness: 0.86, metalness: 0.08 })
+          );
+          mesh.position.set(x + (Math.random() - 0.5) * 4, height * 0.5, z + (Math.random() - 0.5) * 4);
+          const blocksRoad = Math.abs(mesh.position.x) - w * 0.5 < road + 2 || Math.abs(mesh.position.z) - d * 0.5 < road + 2;
+          if (blocksRoad) continue;
+          registerObstacle(mesh);
+          if (ruined) {
+            const chunks = 2 + Math.floor(Math.random() * 4);
+            for (let i = 0; i < chunks; i++) {
+              const debris = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2 + Math.random() * 2.2, 0.8 + Math.random() * 1.2, 1.2 + Math.random() * 2.2),
+                new THREE.MeshStandardMaterial({ color: 0x434a55, roughness: 0.92 })
+              );
+              debris.position.set(
+                mesh.position.x + (Math.random() - 0.5) * (w + 3),
+                debris.geometry.parameters.height * 0.5,
+                mesh.position.z + (Math.random() - 0.5) * (d + 3)
+              );
+              debris.rotation.y = Math.random() * Math.PI;
+              registerObstacle(debris);
+            }
+            if (Math.random() < 0.36) createRuinFire(mesh.position.clone().add(new THREE.Vector3(0, Math.min(height, 8), 0)));
+          }
+        }
+      }
+      // Keep central roads open: no extra hard blockers on primary lanes.
+    }
+    createCityRuins();
+
+    const keys = new Set();
+    const bullets = [];
+    const explosions = [];
+    const tankStates = [];
+    const shootInterval = 3.0;
+    const bulletSpeed = 39;
+    const playerMoveSpeed = 6.3;
+    const aiMoveSpeed = 6.8;
+    const normalFov = 70;
+    const aimFov = 24;
+    const normalCameraOffset = new THREE.Vector3(0, 1.8, 8.8);
+    const normalTargetOffset = new THREE.Vector3(0, 0.75, 0);
+    const yawPitch = { yaw: 0, pitch: 0 };
+
+    let gameOver = false;
+    let isAiming = false;
+    let isRightMouseDown = false;
+    let currentFov = normalFov;
+    let boardDirty = true;
+    let zoneRadius = mapHalfSize - Math.round(8 * mapScale);
+    const zoneMinRadius = Math.round(30 * mapScale);
+    const zoneShrinkStep = Math.round(14 * mapScale);
+    const zoneInterval = 60;
+    let zoneCountdown = zoneInterval;
+    const maxHealth = 100;
+    const poisonDps = 14;
+    const winQuotes = ["你真是太厉害了！", "这操作太强了！", "服了，这局你统治战场！", "我们完全被你压制了！"];
+    const loseQuotes = ["弱鸡！菜就多练！", "这水平还敢来？", "回去再练十年吧！", "你就这点本事？"];
+
+    const crosshair = document.getElementById("crosshair");
+    const scope = document.getElementById("scope");
+    const resultMask = document.getElementById("result");
+    const resultTitle = document.getElementById("result-title");
+    const resultSub = document.getElementById("result-sub");
+    const btnRetry = document.getElementById("btn-retry");
+    const btnNext = document.getElementById("btn-next");
+    const friendlyBody = document.getElementById("friendly-body");
+    const enemyBody = document.getElementById("enemy-body");
+    const zoneInfo = document.getElementById("zone-info");
+    const levelInfo = document.getElementById("level-info");
+
+    const tmpV1 = new THREE.Vector3();
+    const tmpV2 = new THREE.Vector3();
+    const tmpV3 = new THREE.Vector3();
+    const tmpV4 = new THREE.Vector3();
+    const tmpV5 = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const clock = new THREE.Clock();
+    const losRay = new THREE.Ray();
+
+    const totalTanks = 35;
+    const maxEnemyCount = 30;
+    let currentLevel = 1;
+    let currentEnemyCount = 8;
+    const baseNames = ["Wolf", "Ghost", "Raven", "Viper", "Blaze", "Steel", "Nova", "Titan", "Orion", "Hex", "Drake", "Mantis", "Echo", "Bolt", "Rook", "Onyx"];
+    const names = ["你", ...Array.from({ length: totalTanks - 1 }, (_, i) => baseNames[i % baseNames.length] + "-" + (Math.floor(i / baseNames.length) + 1))];
+    const palette = [0xd95f5f, 0x74b7ff, 0xf6b24b, 0xbf7dff, 0x6fd7d7, 0xe57aa6, 0x9ccc65, 0xff8a65, 0x4dd0e1, 0xba68c8, 0xffd54f];
+    const bodyColors = [0x4fc078, ...Array.from({ length: totalTanks - 1 }, (_, i) => palette[i % palette.length])];
+
+    function createTankState(id, isPlayer) {
+      const tank = createTank(bodyColors[id], 0x2e3f59 + id * 0x030101);
+      scene.add(tank);
+      const s = {
+        id,
+        name: names[id],
+        isPlayer,
+        inMatch: false,
+        team: "neutral",
+        tank,
+        alive: true,
+        kills: 0,
+        cooldown: 1 + Math.random() * 1.2,
+        strafePhase: Math.random() * Math.PI * 2,
+        health: maxHealth,
+        dodgeDir: new THREE.Vector3(),
+        pendingDodgeDir: new THREE.Vector3(),
+        dodgeTimer: 0,
+        reactionTimer: 0,
+        hasPendingDodge: false,
+        nextDodgeAt: 0,
+        flankSign: Math.random() < 0.5 ? -1 : 1,
+        tacticalTimer: 0
+      };
+      tankStates.push(s);
+      return s;
+    }
+
+    const playerState = createTankState(0, true);
+    const aiStates = [];
+    for (let i = 1; i < totalTanks; i++) aiStates.push(createTankState(i, false));
+
+    function getAliveStates() {
+      return tankStates.filter((s) => s.inMatch && s.alive);
+    }
+
+    function updateBoard() {
+      if (!boardDirty) return;
+      boardDirty = false;
+      const sorter = (a, b) => {
+        if (a.alive !== b.alive) return a.alive ? -1 : 1;
+        if (a.kills !== b.kills) return b.kills - a.kills;
+        return a.id - b.id;
+      };
+      const fList = tankStates.filter((s) => s.inMatch && s.team === "friendly").sort(sorter);
+      const eList = tankStates.filter((s) => s.inMatch && s.team === "enemy").sort(sorter);
+      friendlyBody.innerHTML = fList.map((s) => {
+        const hp = s.alive ? Math.max(0, Math.ceil(s.health)) : 0;
+        const rowClass = s.alive ? "friendly-row" : "dead-row";
+        return `<tr class="${rowClass}"><td>${s.name}</td><td>${s.kills}</td><td>${hp}</td><td>${s.alive ? "存活" : "阵亡"}</td></tr>`;
+      }).join("");
+      enemyBody.innerHTML = eList.map((s) => {
+        const hp = s.alive ? Math.max(0, Math.ceil(s.health)) : 0;
+        const rowClass = s.alive ? "enemy-row" : "dead-row";
+        return `<tr class="${rowClass}"><td>${s.name}</td><td>${s.kills}</td><td>${hp}</td><td>${s.alive ? "存活" : "阵亡"}</td></tr>`;
+      }).join("");
+    }
+
+    function updateZoneUI() {
+      zoneInfo.textContent = `毒圈缩圈: ${Math.ceil(zoneCountdown)}s | 半径: ${Math.round(zoneRadius)}`;
+      levelInfo.textContent = `关卡: ${currentLevel} | 友军: 5 | 敌军: ${currentEnemyCount}`;
+    }
+
+    function setAiming(active) {
+      isAiming = active && !gameOver && playerState.alive;
+      crosshair.style.display = isAiming ? "block" : "none";
+      scope.style.display = isAiming ? "block" : "none";
+      const t = playerState.tank.userData;
+      t.body.visible = !isAiming;
+      t.leftTrack.visible = !isAiming;
+      t.rightTrack.visible = !isAiming;
+      t.turretMesh.visible = !isAiming;
+      t.barrel.visible = true;
+    }
+
+    function setResult(text, win, allowNext, interview = "") {
+      gameOver = true;
+      setAiming(false);
+      resultTitle.textContent = text;
+      resultTitle.className = win ? "win" : "lose";
+      resultSub.textContent = interview || (win ? "选择下一步" : "按 R 或点击再来一次");
+      btnNext.style.display = allowNext ? "inline-block" : "none";
+      resultMask.classList.add("show");
+    }
+
+    function canSpawnAt(pos, radius, occupied) {
+      if (pos.length() > zoneRadius - radius - 1) return false;
+      if (positionBlocked(pos, radius)) return false;
+      const d = 2.4;
+      let freeDirs = 0;
+      if (!positionBlocked(pos.clone().add(new THREE.Vector3(d, 0, 0)), radius)) freeDirs++;
+      if (!positionBlocked(pos.clone().add(new THREE.Vector3(-d, 0, 0)), radius)) freeDirs++;
+      if (!positionBlocked(pos.clone().add(new THREE.Vector3(0, 0, d)), radius)) freeDirs++;
+      if (!positionBlocked(pos.clone().add(new THREE.Vector3(0, 0, -d)), radius)) freeDirs++;
+      if (freeDirs < 2) return false;
+      for (const o of occupied) {
+        if (pos.distanceTo(o) < radius * 2.4) return false;
+      }
+      return true;
+    }
+
+    function findSpawnAround(anchor, radius, occupied) {
+      for (let i = 0; i < 120; i++) {
+        const ring = 4 + (i % 8) * 2.1 + Math.random() * 1.8;
+        const a = Math.random() * Math.PI * 2;
+        const pos = anchor.clone().add(new THREE.Vector3(Math.cos(a) * ring, 0, Math.sin(a) * ring));
+        if (canSpawnAt(pos, radius, occupied)) return pos;
+      }
+      for (let i = 0; i < 120; i++) {
+        const rr = Math.random() * Math.max(4, zoneRadius - radius - 2);
+        const aa = Math.random() * Math.PI * 2;
+        const pos = new THREE.Vector3(Math.cos(aa) * rr, 0, Math.sin(aa) * rr);
+        if (canSpawnAt(pos, radius, occupied)) return pos;
+      }
+      const fallbackR = Math.max(4, zoneRadius - radius - 3);
+      return anchor.clone().setLength(Math.min(anchor.length(), fallbackR));
+    }
+
+    function findSpawnInSector(centerAngle, spread, radius, occupied, minR, maxR) {
+      for (let i = 0; i < 140; i++) {
+        const a = centerAngle + (Math.random() - 0.5) * spread;
+        const r = minR + Math.random() * (maxR - minR);
+        const pos = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
+        if (canSpawnAt(pos, radius, occupied)) return pos;
+      }
+      return null;
+    }
+
+    function getInterviewLine(playerWin) {
+      const enemyPool = tankStates.filter((s) => s.inMatch && s.team === "enemy");
+      const speaker = enemyPool.length ? enemyPool[Math.floor(Math.random() * enemyPool.length)].name : "敌方坦克";
+      const words = playerWin ? winQuotes : loseQuotes;
+      return `${speaker}: ${words[Math.floor(Math.random() * words.length)]}`;
+    }
+
+
+    function resetGame() {
+      gameOver = false;
+      for (const b of bullets) scene.remove(b.mesh);
+      bullets.length = 0;
+      for (const e of explosions) {
+        scene.remove(e.flash);
+        for (const p of e.parts) scene.remove(p.mesh);
+      }
+      explosions.length = 0;
+      const spawnAnchorRadius = Math.max(8, zoneRadius - 18);
+      const centerAng = Math.random() * Math.PI * 2;
+      const friendlyAng = centerAng;
+      const enemyAng = centerAng + Math.PI;
+      const friendlySpawn = new THREE.Vector3(Math.cos(friendlyAng) * spawnAnchorRadius, 0, Math.sin(friendlyAng) * spawnAnchorRadius);
+      const enemySpawn = new THREE.Vector3(Math.cos(enemyAng) * spawnAnchorRadius, 0, Math.sin(enemyAng) * spawnAnchorRadius);
+      const occupied = [];
+      for (const s of tankStates) {
+        const isFriendly = s.id === 0 || (s.id >= 1 && s.id <= 4);
+        const isEnemy = s.id >= 5 && s.id < 5 + currentEnemyCount;
+        const active = isFriendly || isEnemy;
+        s.inMatch = active;
+        s.team = isFriendly ? "friendly" : (isEnemy ? "enemy" : "neutral");
+        s.alive = active;
+        s.kills = 0;
+        s.cooldown = 1 + Math.random() * 1.2;
+        s.health = maxHealth;
+        s.dodgeTimer = 0;
+        s.reactionTimer = 0;
+        s.hasPendingDodge = false;
+        s.nextDodgeAt = 0;
+        s.flankSign = Math.random() < 0.5 ? -1 : 1;
+        s.tacticalTimer = 0;
+        s.tank.visible = active;
+        if (active) {
+          if (isFriendly) {
+            const p = findSpawnInSector(
+              friendlyAng,
+              1.15,
+              s.tank.userData.radius,
+              occupied,
+              Math.max(6, spawnAnchorRadius - 14),
+              Math.min(zoneRadius - 4, spawnAnchorRadius + 6)
+            ) || findSpawnAround(friendlySpawn, s.tank.userData.radius, occupied);
+            s.tank.position.copy(p);
+            s.tank.rotation.set(0, Math.atan2(enemySpawn.x - s.tank.position.x, enemySpawn.z - s.tank.position.z), 0);
+          } else {
+            const p = findSpawnInSector(
+              enemyAng,
+              1.3,
+              s.tank.userData.radius,
+              occupied,
+              Math.max(6, spawnAnchorRadius - 18),
+              Math.min(zoneRadius - 4, spawnAnchorRadius + 8)
+            ) || findSpawnAround(enemySpawn, s.tank.userData.radius, occupied);
+            s.tank.position.copy(p);
+            s.tank.rotation.set(0, Math.atan2(friendlySpawn.x - s.tank.position.x, friendlySpawn.z - s.tank.position.z), 0);
+          }
+          occupied.push(s.tank.position.clone());
+          const teamColor = s.team === "friendly" ? (s.id === 0 ? 0x4fc078 : 0x4a8df0) : 0xd95f5f;
+          s.tank.userData.body.material.color.setHex(teamColor);
+          s.tank.userData.turretMesh.material.color.setHex(teamColor);
+        }
+        s.tank.userData.turretYaw.rotation.y = 0;
+        s.tank.userData.barrelPitch.rotation.x = 0;
+      }
+      yawPitch.yaw = playerState.tank.rotation.y;
+      currentFov = normalFov;
+      zoneRadius = mapHalfSize - Math.round(8 * mapScale);
+      zoneCountdown = zoneInterval;
+      zoneLine.scale.set(zoneRadius, 1, zoneRadius);
+      resultMask.classList.remove("show");
+      resultSub.textContent = "按 R 重新开局";
+      btnNext.style.display = "none";
+      setAiming(false);
+      boardDirty = true;
+      updateBoard();
+      updateZoneUI();
+    }
+
+    function startNextLevel() {
+      currentLevel += 1;
+      currentEnemyCount = Math.min(maxEnemyCount, currentEnemyCount + (1 + Math.floor(Math.random() * 3)));
+      resetGame();
+    }
+
+    function wrapAngle(a) {
+      let value = a;
+      while (value > Math.PI) value -= Math.PI * 2;
+      while (value < -Math.PI) value += Math.PI * 2;
+      return value;
+    }
+
+    function positionBlocked(pos, radius) {
+      if (pos.x < -mapHalfSize || pos.x > mapHalfSize || pos.z < -mapHalfSize || pos.z > mapHalfSize) return true;
+      for (const box of obstacleBoxes) if (box.distanceToPoint(pos) < radius) return true;
+      return false;
+    }
+
+    function getMuzzleWorld(tank) {
+      return tank.userData.muzzle.getWorldPosition(new THREE.Vector3());
+    }
+
+    function getMuzzleDirection(tank) {
+      return tank.userData.muzzle.getWorldDirection(new THREE.Vector3()).normalize();
+    }
+
+    function hasLineOfSight(from, to) {
+      const toTarget = tmpV5.copy(to).sub(from);
+      const maxDist = toTarget.length();
+      if (maxDist < 0.001) return true;
+      losRay.origin.copy(from);
+      losRay.direction.copy(toTarget).divideScalar(maxDist);
+      for (const box of obstacleBoxes) {
+        const hit = losRay.intersectBox(box, tmpV4);
+        if (hit && from.distanceTo(hit) < maxDist) return false;
+      }
+      return true;
+    }
+
+    function updateGunAim(s, targetYaw, dt, instant = false, reverse = false) {
+      const yaw = reverse ? targetYaw + Math.PI : targetYaw;
+      const localYaw = wrapAngle(yaw - s.tank.rotation.y);
+      s.tank.userData.turretYaw.rotation.y = instant
+        ? localYaw
+        : THREE.MathUtils.lerp(s.tank.userData.turretYaw.rotation.y, localYaw, dt * 10);
+      s.tank.userData.barrelPitch.rotation.x = 0;
+    }
+
+    function spawnExplosion(position, isTankHit) {
+      const flash = new THREE.Mesh(
+        new THREE.SphereGeometry(isTankHit ? 1.2 : 0.9, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xffc36b, emissive: 0xff6b00, emissiveIntensity: 2.2, transparent: true, opacity: 0.9 })
+      );
+      flash.position.copy(position);
+      scene.add(flash);
+      const parts = [];
+      for (let i = 0; i < (isTankHit ? 22 : 14); i++) {
+        const spark = new THREE.Mesh(
+          new THREE.SphereGeometry(0.12 + Math.random() * 0.1, 6, 6),
+          new THREE.MeshStandardMaterial({ color: i % 2 ? 0xff7a28 : 0x3b3a3a, emissive: i % 2 ? 0xaa3300 : 0x000000, transparent: true, opacity: 0.95 })
+        );
+        spark.position.copy(position);
+        scene.add(spark);
+        parts.push({ mesh: spark, vel: new THREE.Vector3((Math.random() - 0.5) * 13, 3 + Math.random() * 9, (Math.random() - 0.5) * 13) });
+      }
+      explosions.push({ flash, parts, life: isTankHit ? 0.95 : 0.65 });
+    }
+
+    function spawnBullet(origin, dir, ownerId) {
+      const shell = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.72, 10), new THREE.MeshStandardMaterial({ color: 0xb7b39e, metalness: 0.8, roughness: 0.25 }));
+      body.rotation.x = Math.PI * 0.5;
+      shell.add(body);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.34, 10), new THREE.MeshStandardMaterial({ color: 0x928c78, metalness: 0.75, roughness: 0.28 }));
+      nose.rotation.x = Math.PI * 0.5;
+      nose.position.z = 0.52;
+      shell.add(nose);
+      shell.position.copy(origin);
+      shell.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
+      shell.castShadow = true;
+      scene.add(shell);
+      bullets.push({ mesh: shell, dir: dir.clone().normalize(), ownerId, life: 4.2 });
+    }
+
+    function tryShoot(s) {
+      if (!s.alive || gameOver || s.cooldown > 0) return;
+      s.cooldown = s.isPlayer ? shootInterval : 2.1;
+      const origin = getMuzzleWorld(s.tank).add(getMuzzleDirection(s.tank).multiplyScalar(0.25));
+      const dir = getMuzzleDirection(s.tank);
+      if (!s.isPlayer) {
+        dir.x += (Math.random() - 0.5) * 0.025;
+        dir.z += (Math.random() - 0.5) * 0.025;
+        dir.normalize();
+      }
+      spawnBullet(origin, dir, s.id);
+    }
+
+    function resolvePlayerMove(dt) {
+      if (!playerState.alive) return;
+      const local = new THREE.Vector3();
+      if (keys.has("KeyW")) local.z -= 1;
+      if (keys.has("KeyS")) local.z += 1;
+      if (keys.has("KeyA")) local.x -= 1;
+      if (keys.has("KeyD")) local.x += 1;
+      if (local.lengthSq() === 0) return;
+      local.normalize().multiplyScalar(playerMoveSpeed * dt);
+      const worldMove = local.applyEuler(new THREE.Euler(0, playerState.tank.rotation.y, 0));
+      const full = playerState.tank.position.clone().add(worldMove);
+      const xOnly = playerState.tank.position.clone().add(new THREE.Vector3(worldMove.x, 0, 0));
+      const zOnly = playerState.tank.position.clone().add(new THREE.Vector3(0, 0, worldMove.z));
+      if (!positionBlocked(full, playerState.tank.userData.radius)) playerState.tank.position.copy(full);
+      else if (!positionBlocked(xOnly, playerState.tank.userData.radius)) playerState.tank.position.copy(xOnly);
+      else if (!positionBlocked(zOnly, playerState.tank.userData.radius)) playerState.tank.position.copy(zOnly);
+    }
+
+    function selectAITarget(s) {
+      const candidates = getAliveStates().filter((t) => t.id !== s.id && t.team !== s.team);
+      if (candidates.length === 0) return null;
+      let best = candidates[0];
+      let bestScore = -Infinity;
+      for (const c of candidates) {
+        const dist = s.tank.position.distanceTo(c.tank.position);
+        const hpFactor = 1 - c.health / maxHealth;
+        const muzzle = s.tank.userData.muzzle.getWorldPosition(tmpV4);
+        const targetPos = c.tank.position.clone().add(new THREE.Vector3(0, 1.1, 0));
+        const los = hasLineOfSight(muzzle, targetPos) ? 1 : 0;
+        const zoneRisk = c.tank.position.length() > zoneRadius ? 0.45 : 0;
+        const score = los * 2.2 + hpFactor * 1.1 + zoneRisk - dist * 0.015;
+        if (score > bestScore) {
+          best = c;
+          bestScore = score;
+        }
+      }
+      return best;
+    }
+
+    function resolveAI(dt, s) {
+      if (!s.alive) return;
+      const target = selectAITarget(s);
+      if (!target) return;
+
+      const toTarget = target.tank.position.clone().sub(s.tank.position);
+      const dist = toTarget.length();
+      const dir = toTarget.normalize();
+      let move = new THREE.Vector3();
+      const nearZoneEdge = s.tank.position.length() > zoneRadius - 5;
+
+      const dodge = getAIDodgeVector(s, dt);
+      if (dodge) {
+        move.copy(dodge);
+      } else {
+        const outside = s.tank.position.length() > zoneRadius - 2;
+        const muzzle = s.tank.userData.muzzle.getWorldPosition(tmpV4);
+        const targetPos = target.tank.position.clone().add(new THREE.Vector3(0, 1.1, 0));
+        const hasLos = hasLineOfSight(muzzle, targetPos);
+        const lowHp = s.health < maxHealth * 0.45;
+        s.tacticalTimer -= dt;
+        if (s.tacticalTimer <= 0) {
+          if (Math.random() < 0.25) s.flankSign *= -1;
+          s.tacticalTimer = 1.2 + Math.random() * 1.1;
+        }
+
+        if (outside || nearZoneEdge) {
+          const toCenter = s.tank.position.clone().multiplyScalar(-1).normalize();
+          move.copy(toCenter).multiplyScalar(aiMoveSpeed * dt);
+          const tangential = new THREE.Vector3(-toCenter.z, 0, toCenter.x).multiplyScalar(s.flankSign * aiMoveSpeed * 0.12 * dt);
+          move.add(tangential);
+        } else {
+          if (!hasLos) {
+            const flank = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(s.flankSign);
+            const seek = dir.clone().multiplyScalar(0.65).add(flank.multiplyScalar(0.75)).normalize();
+            move.copy(seek).multiplyScalar(aiMoveSpeed * dt);
+          } else if (lowHp && dist < 32) {
+            const retreat = dir.clone().multiplyScalar(-1);
+            const side = new THREE.Vector3(-retreat.z, 0, retreat.x).multiplyScalar(s.flankSign * 0.45);
+            move.copy(retreat.add(side).normalize()).multiplyScalar(aiMoveSpeed * dt);
+          } else if (dist > 30) {
+            move.copy(dir).multiplyScalar(aiMoveSpeed * dt);
+          } else if (dist < 14) {
+            move.copy(dir).multiplyScalar(-aiMoveSpeed * dt * 0.75);
+          } else {
+            move.set(-dir.z, 0, dir.x).multiplyScalar((0.35 + Math.sin(clock.elapsedTime * 1.4 + s.strafePhase) * 0.25) * aiMoveSpeed * dt * s.flankSign);
+          }
+        }
+      }
+
+      if (move.length() > aiMoveSpeed * dt) move.setLength(aiMoveSpeed * dt);
+      const next = s.tank.position.clone().add(move);
+      if (!positionBlocked(next, s.tank.userData.radius)) s.tank.position.copy(next);
+      if (move.lengthSq() > 0.0001) s.tank.rotation.y = THREE.MathUtils.lerp(s.tank.rotation.y, Math.atan2(move.x, move.z), dt * 4);
+
+      const yaw = Math.atan2(target.tank.position.x - s.tank.position.x, target.tank.position.z - s.tank.position.z);
+      updateGunAim(s, yaw, dt);
+      const muzzle2 = s.tank.userData.muzzle.getWorldPosition(tmpV4);
+      const targetPos2 = target.tank.position.clone().add(new THREE.Vector3(0, 1.1, 0));
+      if (hasLineOfSight(muzzle2, targetPos2)) tryShoot(s);
+    }
+
+    function getAIDodgeVector(s, dt) {
+      const now = clock.elapsedTime;
+      if (s.dodgeTimer > 0) {
+        s.dodgeTimer -= dt;
+        return s.dodgeDir.clone().multiplyScalar(aiMoveSpeed * dt);
+      }
+
+      if (s.reactionTimer > 0) {
+        s.reactionTimer -= dt;
+        if (s.reactionTimer <= 0) {
+          if (s.hasPendingDodge && Math.random() < 0.78) {
+            s.dodgeDir.copy(s.pendingDodgeDir);
+            s.dodgeTimer = 0.32 + Math.random() * 0.42;
+          }
+          s.hasPendingDodge = false;
+          s.nextDodgeAt = now + 0.45 + Math.random() * 0.55;
+        }
+        return null;
+      }
+
+      if (now < s.nextDodgeAt) return null;
+
+      const tankPos = s.tank.position;
+      let threatDir = null;
+      let bestThreat = 0;
+      for (const b of bullets) {
+        if (b.ownerId === s.id) continue;
+        const toTank = tankPos.clone().sub(b.mesh.position);
+        const dist = toTank.length();
+        if (dist > 24) continue;
+        const toward = toTank.clone().normalize().dot(b.dir);
+        if (toward < 0.82) continue;
+        const testTarget = tankPos.clone().add(new THREE.Vector3(0, 1.0, 0));
+        if (!hasLineOfSight(b.mesh.position, testTarget)) continue;
+        const threat = toward * (1 - dist / 24);
+        if (threat > bestThreat) {
+          const lateral = toTank.sub(b.dir.clone().multiplyScalar(toTank.dot(b.dir)));
+          if (lateral.lengthSq() < 0.001) lateral.set(-b.dir.z, 0, b.dir.x);
+          lateral.y = 0;
+          threatDir = lateral.normalize();
+          bestThreat = threat;
+        }
+      }
+
+      if (!threatDir) return null;
+      const reactChance = 0.4 + bestThreat * 0.35;
+      if (Math.random() > reactChance) {
+        s.nextDodgeAt = now + 0.3 + Math.random() * 0.35;
+        return null;
+      }
+
+      if (Math.random() < 0.2) threatDir.multiplyScalar(-1);
+      s.pendingDodgeDir.copy(threatDir);
+      s.hasPendingDodge = true;
+      s.reactionTimer = 0.18 + Math.random() * 0.45;
+      return null;
+    }
+
+    function getHitDamage(victim, hitPoint) {
+      const localHit = victim.tank.worldToLocal(hitPoint.clone());
+      const halfWidth = victim.tank.userData.radius;
+      const third = halfWidth / 3;
+      return Math.abs(localHit.x) <= third ? maxHealth : maxHealth * 0.5;
+    }
+
+    function handleHit(victim, killerId, hitPos) {
+      if (!victim.alive) return;
+      spawnExplosion(hitPos, true);
+      const killer = tankStates.find((s) => s.id === killerId);
+      if (killer && killer.id !== victim.id) killer.kills += 1;
+      boardDirty = true;
+      victim.alive = false;
+      victim.tank.visible = false;
+      const aliveEnemies = aiStates.filter((s) => s.inMatch && s.alive && s.team === "enemy").length;
+      if (victim.isPlayer) {
+        const byPoison = killerId < 0;
+        setResult(byPoison ? "你在毒圈中被淘汰" : "你被击毁，失败", false, false, getInterviewLine(false));
+      } else if (victim.team === "enemy" && aliveEnemies === 0 && playerState.alive) {
+        setResult("敌方全灭，通关", true, true, getInterviewLine(true));
+      }
+    }
+
+    function updateBullets(dt) {
+      const tankOffset = new THREE.Vector3(0, 1.0, 0);
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.life -= dt;
+        b.mesh.position.addScaledVector(b.dir, bulletSpeed * dt);
+        const p = b.mesh.position;
+        if (b.life <= 0 || Math.abs(p.x) > mapHalfSize + 8 || Math.abs(p.z) > mapHalfSize + 8 || p.y < -2 || p.y > 28) {
+          scene.remove(b.mesh); bullets.splice(i, 1); continue;
+        }
+        let hitObstacle = false;
+        for (const box of obstacleBoxes) { if (box.containsPoint(p)) { hitObstacle = true; break; } }
+        if (hitObstacle) { spawnExplosion(p.clone(), false); scene.remove(b.mesh); bullets.splice(i, 1); continue; }
+        const owner = tankStates.find((s) => s.id === b.ownerId);
+        const victim = tankStates.find((s) =>
+          s.inMatch &&
+          s.alive &&
+          s.id !== b.ownerId &&
+          owner &&
+          s.team !== owner.team &&
+          p.distanceTo(s.tank.position.clone().add(tankOffset)) < 1.8
+        );
+        if (victim) {
+          scene.remove(b.mesh);
+          bullets.splice(i, 1);
+          victim.health -= getHitDamage(victim, p.clone());
+          boardDirty = true;
+          if (victim.health <= 0) {
+            handleHit(victim, b.ownerId, p.clone());
+          } else {
+            spawnExplosion(p.clone(), true);
+          }
+        }
+      }
+    }
+
+    function updatePoisonZone(dt) {
+      if (zoneRadius > zoneMinRadius) {
+        zoneCountdown -= dt;
+        if (zoneCountdown <= 0) {
+          zoneCountdown = zoneInterval;
+          zoneRadius = Math.max(zoneMinRadius, zoneRadius - zoneShrinkStep);
+          zoneLine.scale.set(zoneRadius, 1, zoneRadius);
+        }
+      } else {
+        zoneCountdown = 0;
+      }
+
+      for (const s of tankStates) {
+        if (!s.alive) continue;
+        const d = s.tank.position.length();
+        if (d > zoneRadius) {
+          s.health -= poisonDps * dt;
+          boardDirty = true;
+        }
+        if (s.health <= 0) {
+          handleHit(s, -1, s.tank.position.clone().add(new THREE.Vector3(0, 1.0, 0)));
+        }
+      }
+      updateZoneUI();
+    }
+
+    function updateFireEmitters(dt) {
+      for (const f of fireEmitters) {
+        f.t += dt;
+        f.fire.scale.setScalar(0.82 + Math.sin(f.t * 8) * 0.12 + Math.random() * 0.12);
+        f.fire.material.opacity = 0.66 + Math.sin(f.t * 10) * 0.09;
+        for (const puff of f.smoke) {
+          puff.mesh.position.y += puff.drift * dt;
+          puff.mesh.position.x += Math.sin(f.t + puff.seed) * 0.08 * dt;
+          puff.mesh.position.z += Math.cos(f.t * 1.2 + puff.seed) * 0.08 * dt;
+          puff.mesh.material.opacity = Math.max(0.06, puff.mesh.material.opacity - 0.03 * dt);
+          if (puff.mesh.position.y > f.origin.y + 4.8) {
+            puff.mesh.position.set(f.origin.x + (Math.random() - 0.5) * 0.55, f.origin.y + 0.6, f.origin.z + (Math.random() - 0.5) * 0.55);
+            puff.mesh.material.opacity = 0.28 + Math.random() * 0.08;
+          }
+        }
+      }
+    }
+
+    function updateExplosions(dt) {
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        const ex = explosions[i];
+        ex.life -= dt;
+        ex.flash.scale.multiplyScalar(1 + dt * 3.5);
+        ex.flash.material.opacity = Math.max(0, ex.flash.material.opacity - dt * 2.9);
+        for (const p of ex.parts) {
+          p.vel.y -= dt * 9;
+          p.mesh.position.addScaledVector(p.vel, dt);
+          p.mesh.material.opacity = Math.max(0, p.mesh.material.opacity - dt * 1.7);
+        }
+        if (ex.life <= 0) {
+          scene.remove(ex.flash);
+          for (const p of ex.parts) scene.remove(p.mesh);
+          explosions.splice(i, 1);
+        }
+      }
+    }
+
+    function updateCamera(dt) {
+      const desiredFov = isAiming ? aimFov : normalFov;
+      currentFov = THREE.MathUtils.lerp(currentFov, desiredFov, Math.min(1, dt * 11));
+      camera.fov = currentFov;
+      camera.updateProjectionMatrix();
+      if (isAiming) {
+        const muzzlePos = playerState.tank.userData.muzzle.getWorldPosition(tmpV1);
+        const dir = playerState.tank.userData.muzzle.getWorldDirection(tmpV2).normalize();
+        const right = tmpV3.crossVectors(dir, up).normalize();
+        const camPos = muzzlePos.clone().addScaledVector(dir, -0.95).addScaledVector(up, 0.26).addScaledVector(right, 0.03);
+        camera.position.lerp(camPos, Math.min(1, dt * 16));
+        camera.lookAt(muzzlePos.clone().addScaledVector(dir, 180));
+      } else {
+        const offset = normalCameraOffset.clone().applyEuler(new THREE.Euler(0, yawPitch.yaw, 0));
+        const target = playerState.tank.position.clone().add(normalTargetOffset);
+        camera.position.lerp(target.clone().add(offset), Math.min(1, dt * 8));
+        camera.lookAt(target);
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      keys.add(e.code);
+      if (e.code === "Space") tryShoot(playerState);
+      if (e.code === "KeyR" && gameOver) resetGame();
+    });
+    document.addEventListener("keyup", (e) => keys.delete(e.code));
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    document.addEventListener("mousedown", (e) => {
+      if (gameOver) return;
+      if (e.button === 2) {
+        isRightMouseDown = true;
+        if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock();
+        else setAiming(true);
+      }
+      if (e.button === 0) tryShoot(playerState);
+    });
+
+    document.addEventListener("mouseup", (e) => {
+      if (e.button === 2) {
+        isRightMouseDown = false;
+        setAiming(false);
+      }
+    });
+
+    document.addEventListener("pointerlockchange", () => {
+      if (document.pointerLockElement !== renderer.domElement) setAiming(false);
+      else if (isRightMouseDown) setAiming(true);
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (document.pointerLockElement !== renderer.domElement || gameOver) return;
+      yawPitch.yaw -= e.movementX * 0.0024;
+    });
+
+    btnRetry.addEventListener("click", () => {
+      resetGame();
+    });
+    btnNext.addEventListener("click", () => {
+      if (btnNext.style.display !== "none") startNextLevel();
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function loop() {
+      const dt = Math.min(clock.getDelta(), 0.033);
+      if (!gameOver) {
+        for (const s of tankStates) s.cooldown = Math.max(0, s.cooldown - dt);
+        if (playerState.alive) {
+          playerState.tank.rotation.y = THREE.MathUtils.lerp(playerState.tank.rotation.y, yawPitch.yaw, dt * 7);
+          resolvePlayerMove(dt);
+          updateGunAim(playerState, yawPitch.yaw, dt, true, true);
+        }
+        for (const ai of aiStates) resolveAI(dt, ai);
+        updateBullets(dt);
+        updatePoisonZone(dt);
+      }
+      updateFireEmitters(dt);
+      updateExplosions(dt);
+      updateCamera(dt);
+      updateBoard();
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+
+    resetGame();
+    loop();
+  </script>
+</body>
+</html>
