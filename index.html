@@ -200,7 +200,7 @@
   <div id="scope"></div>
   <div id="board">
     <h4>战场排行</h4>
-    <div id="level-info">关卡: 1 | 友军: 5 | 敌军: 8</div>
+    <div id="level-info">关卡: 1 | 友军: 5 | 敌军: 5</div>
     <div id="zone-info">毒圈缩圈: 60s</div>
     <div class="camp-title friendly">己方阵营</div>
     <div class="camp-list">
@@ -473,7 +473,7 @@
     const totalTanks = 35;
     const maxEnemyCount = 30;
     let currentLevel = 1;
-    let currentEnemyCount = 8;
+    let currentEnemyCount = 5;
     const baseNames = ["Wolf", "Ghost", "Raven", "Viper", "Blaze", "Steel", "Nova", "Titan", "Orion", "Hex", "Drake", "Mantis", "Echo", "Bolt", "Rook", "Onyx"];
     const names = ["你", ...Array.from({ length: totalTanks - 1 }, (_, i) => baseNames[i % baseNames.length] + "-" + (Math.floor(i / baseNames.length) + 1))];
     const palette = [0xd95f5f, 0x74b7ff, 0xf6b24b, 0xbf7dff, 0x6fd7d7, 0xe57aa6, 0x9ccc65, 0xff8a65, 0x4dd0e1, 0xba68c8, 0xffd54f];
