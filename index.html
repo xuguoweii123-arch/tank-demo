@@ -681,6 +681,8 @@
         s.tank.userData.barrelPitch.rotation.x = 0;
       }
       yawPitch.yaw = playerState.tank.rotation.y;
+      // Spawn orientation is opposite to initial view direction.
+      yawPitch.yaw = wrapAngle(yawPitch.yaw + Math.PI);
       currentFov = normalFov;
       zoneRadius = mapHalfSize - Math.round(8 * mapScale);
       zoneCountdown = zoneInterval;
@@ -688,6 +690,8 @@
       resultMask.classList.remove("show");
       resultSub.textContent = "按 R 重新开局";
       btnNext.style.display = "none";
+      btnRetry.textContent = "再来一次 (R)";
+      btnNext.textContent = "挑战下一关 (N)";
       setAiming(false);
       boardDirty = true;
       updateBoard();
@@ -1098,6 +1102,7 @@
       keys.add(e.code);
       if (e.code === "Space") tryShoot(playerState);
       if (e.code === "KeyR" && gameOver) resetGame();
+      if (e.code === "KeyN" && gameOver && btnNext.style.display !== "none") startNextLevel();
     });
     document.addEventListener("keyup", (e) => keys.delete(e.code));
     document.addEventListener("contextmenu", (e) => e.preventDefault());
